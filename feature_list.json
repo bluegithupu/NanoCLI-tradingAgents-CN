@@ -1,0 +1,36 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "A 股 CLI 基线",
+      "description": "提供用于 A 股分析的 Python CLI，支持股票代码校验、可配置分析日期、分析师选择、mock LLM 模式和 Markdown 报告输出。",
+      "dependencies": [],
+      "status": "已完成",
+      "evidence": "现有实现已在 README.md 中说明，并由 tests/ 目录下的测试覆盖。"
+    },
+    {
+      "id": "feat-002",
+      "name": "AKShare 数据集成",
+      "description": "通过 AKShare 优先的数据适配器获取 A 股行情、技术指标、基本面和新闻数据。",
+      "dependencies": ["feat-001"],
+      "status": "已完成",
+      "evidence": "现有数据模块为 nano_tradingagents/data/ashare.py，对应测试为 tests/test_ashare.py。"
+    },
+    {
+      "id": "feat-003",
+      "name": "多智能体分析链路",
+      "description": "运行技术面、基本面、新闻、看多、看空、交易员和风险经理等分析阶段，生成最终决策。",
+      "dependencies": ["feat-001", "feat-002"],
+      "status": "已完成",
+      "evidence": "现有链路模块为 nano_tradingagents/agents/pipeline.py，对应测试为 tests/test_pipeline.py。"
+    },
+    {
+      "id": "feat-004",
+      "name": "项目 harness 初始化",
+      "description": "添加最小 harness 文件，用于启动流程、状态追踪、验证、范围控制和会话交接。",
+      "dependencies": [],
+      "status": "已完成",
+      "evidence": "2026-05-08 运行 ./init.sh 通过：8 个 pytest 测试通过。"
+    }
+  ]
+}
