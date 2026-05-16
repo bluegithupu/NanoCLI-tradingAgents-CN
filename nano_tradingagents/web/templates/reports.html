@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>报告列表</title>
+  <style>
+    body{margin:0;font-family:"PingFang SC","Noto Sans SC",sans-serif;background:#f5f7ff;color:#1f2a44}
+    .wrap{max-width:920px;margin:24px auto;padding:0 16px}
+    .card{background:#fff;border:1px solid #d8e0f0;border-radius:14px;padding:18px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 8px;border-bottom:1px solid #e6ebf7;text-align:left}
+    th{font-size:13px;color:#64748b}
+    a{color:#0f4aa1;text-decoration:none} a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>历史报告</h1>
+      <p><a href="/">返回首页</a></p>
+      <table>
+        <thead>
+          <tr><th>文件名</th><th>更新时间</th><th>大小(KB)</th></tr>
+        </thead>
+        <tbody>
+          {% for row in reports %}
+          <tr>
+            <td><a href="/reports/{{ row.name }}">{{ row.name }}</a></td>
+            <td>{{ row.updated_at }}</td>
+            <td>{{ row.size_kb }}</td>
+          </tr>
+          {% endfor %}
+          {% if not reports %}
+          <tr><td colspan="3">暂无报告</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

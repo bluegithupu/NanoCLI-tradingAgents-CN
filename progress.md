@@ -3,7 +3,7 @@
 ## 当前状态
 
 **最后更新：** 2026-05-16
-**当前功能：** feat-006 - 数据源优先级与策略参数
+**当前功能：** feat-007 - Human Web 页面（V1）
 
 ## 状态
 
@@ -26,7 +26,9 @@
 - [x] 已将 Tushare 提升为默认第一优先数据源
 - [x] 已新增数据源策略参数：`--data-source`（`tushare`/`akshare`/`auto`）
 - [x] 已新增环境变量策略默认值：`NANO_DATA_SOURCE`
+- [x] 已完成 FastAPI + Jinja Web 页面 V1（表单分析 + 结果展示 + 报告浏览）
 - [x] 已完成真实 CLI 验证：`nano-trading analyze 002352 --date 2026-05-16 --depth quick --analysts market,fundamentals,news`
+- [x] 已将 Web“分析师列表”改为固定复选选项（不再手填），并完成 browser skill E2E 验证
 
 ### 进行中
 
@@ -98,3 +100,5 @@
 ## 下次会话提示
 
 先运行 `./init.sh`，再阅读 `feature_list.json`，然后选择下一个任务。
+
+- [x] Web V1 验证：2026-05-16 运行 `./init.sh` 通过，20 个测试通过。

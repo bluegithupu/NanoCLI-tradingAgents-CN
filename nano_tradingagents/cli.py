@@ -75,5 +75,24 @@ def analyze(
         raise typer.Exit(code=1) from exc
 
 
+@app.command()
+def web(
+    host: str = typer.Option("127.0.0.1", "--host", help="Web 服务监听地址，默认仅本机可访问"),
+    port: int = typer.Option(8000, "--port", help="Web 服务端口"),
+) -> None:
+    """启动面向 human 的 Web 页面。"""
+    try:
+        import uvicorn
+    except Exception as exc:
+        console.print("[red]错误:[/red] 缺少 uvicorn 依赖，请重新安装项目依赖")
+        raise typer.Exit(code=1) from exc
+
+    from nano_tradingagents.web import create_web_app
+
+    app_instance = create_web_app()
+    console.print(f"[green]Web 已启动[/green] http://{host}:{port}")
+    uvicorn.run(app_instance, host=host, port=port, log_level="info")
+
+
 if __name__ == "__main__":
     app()

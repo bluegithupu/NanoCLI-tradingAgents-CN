@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nano TradingAgents Web</title>
+  <style>
+    :root { --bg:#f4f6fb; --card:#ffffff; --text:#1f2a44; --accent:#0f766e; --line:#d8e0f0; --danger:#b91c1c; }
+    body { margin:0; font-family: "PingFang SC","Noto Sans SC",sans-serif; background: radial-gradient(circle at top right,#dfe9ff 0,#f4f6fb 40%); color:var(--text); }
+    .wrap { max-width: 860px; margin: 32px auto; padding: 0 16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:0 10px 30px rgba(16,24,40,.06); }
+    h1 { margin:0 0 8px; font-size:28px; }
+    p { margin:0 0 16px; }
+    .err { background:#fee2e2; border:1px solid #fecaca; color:var(--danger); border-radius:10px; padding:10px 12px; margin:0 0 14px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .full { grid-column:1 / -1; }
+    label { font-size:13px; font-weight:600; display:block; margin-bottom:6px; }
+    input, select { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; }
+    .row { display:flex; align-items:center; gap:8px; }
+    .analyst-options { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; }
+    .analyst-option { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; }
+    .analyst-option input { width:auto; margin:0; padding:0; }
+    .btn { margin-top:14px; background:var(--accent); color:#fff; border:0; border-radius:10px; padding:11px 14px; font-size:14px; font-weight:700; cursor:pointer; }
+    .links { margin-top:12px; font-size:14px; }
+    a { color:#0f4aa1; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    @media (max-width: 720px) {
+      .analyst-options { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Nano A股分析（Human Web）</h1>
+      <p>填写参数后执行一次分析，完成后在线查看结果与报告。</p>
+      {% if error %}
+      <div class="err">{{ error }}</div>
+      {% endif %}
+      <form method="post" action="/analyze">
+        <div class="grid">
+          <div>
+            <label>股票代码</label>
+            <input name="symbol" value="{{ values.symbol }}" placeholder="如 000001" required />
+          </div>
+          <div>
+            <label>分析日期</label>
+            <input name="trade_date" type="date" value="{{ values.trade_date }}" required />
+          </div>
+          <div>
+            <label>分析深度</label>
+            <select name="depth">
+              <option value="quick" {% if values.depth == 'quick' %}selected{% endif %}>quick</option>
+              <option value="standard" {% if values.depth == 'standard' %}selected{% endif %}>standard</option>
+              <option value="deep" {% if values.depth == 'deep' %}selected{% endif %}>deep</option>
+            </select>
+          </div>
+          <div>
+            <label>数据源策略</label>
+            <select name="data_source">
+              <option value="tushare" {% if values.data_source == 'tushare' %}selected{% endif %}>tushare</option>
+              <option value="akshare" {% if values.data_source == 'akshare' %}selected{% endif %}>akshare</option>
+              <option value="auto" {% if values.data_source == 'auto' %}selected{% endif %}>auto</option>
+            </select>
+          </div>
+          <div class="full">
+            <label>分析师列表</label>
+            <div class="analyst-options">
+              <label class="analyst-option">
+                <input name="analysts" type="checkbox" value="market" {% if 'market' in values.analysts %}checked{% endif %} />
+                <span>market（技术面）</span>
+              </label>
+              <label class="analyst-option">
+                <input name="analysts" type="checkbox" value="fundamentals" {% if 'fundamentals' in values.analysts %}checked{% endif %} />
+                <span>fundamentals（基本面）</span>
+              </label>
+              <label class="analyst-option">
+                <input name="analysts" type="checkbox" value="news" {% if 'news' in values.analysts %}checked{% endif %} />
+                <span>news（新闻）</span>
+              </label>
+            </div>
+          </div>
+          <div class="full row">
+            <input id="mock_llm" name="mock_llm" type="checkbox" {% if values.mock_llm %}checked{% endif %} />
+            <label for="mock_llm" style="margin:0;">使用 mock LLM（不调用真实模型）</label>
+          </div>
+        </div>
+        <button class="btn" type="submit">开始分析</button>
+      </form>
+      <div class="links">
+        <a href="/reports">查看历史报告</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

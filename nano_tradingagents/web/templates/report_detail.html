@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ name }}</title>
+  <style>
+    body{margin:0;font-family:"PingFang SC","Noto Sans SC",sans-serif;background:#f5f7ff;color:#1f2a44}
+    .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+    .card{background:#fff;border:1px solid #d8e0f0;border-radius:14px;padding:18px}
+    pre{background:#f8fafc;border:1px solid #d8e0f0;border-radius:10px;padding:14px;white-space:pre-wrap;line-height:1.5}
+    a{color:#0f4aa1;text-decoration:none} a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>{{ name }}</h1>
+      <p><a href="/reports">返回报告列表</a> ｜ <a href="/">返回首页</a></p>
+      <pre>{{ content }}</pre>
+    </div>
+  </div>
+</body>
+</html>
