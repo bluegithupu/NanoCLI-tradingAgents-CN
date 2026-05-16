@@ -13,6 +13,7 @@ except Exception:  # pragma: no cover - optional dependency fallback
 
 DEPTHS = {"quick", "standard", "deep"}
 ANALYSTS = {"market", "fundamentals", "news"}
+DATA_SOURCES = {"tushare", "akshare", "auto"}
 
 
 @dataclass(frozen=True)
@@ -55,3 +56,10 @@ def parse_analysts(value: str) -> List[str]:
     if not analysts:
         raise ValueError("至少需要选择一个分析师")
     return analysts
+
+
+def parse_data_source(value: str) -> str:
+    normalized = (value or os.getenv("NANO_DATA_SOURCE", "tushare")).strip().lower()
+    if normalized not in DATA_SOURCES:
+        raise ValueError("不支持的数据源策略: {0}，支持: tushare, akshare, auto".format(value))
+    return normalized

@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from nano_tradingagents.agents import run_analysis_pipeline
-from nano_tradingagents.config import load_settings, normalize_depth, parse_analysts
+from nano_tradingagents.config import load_settings, normalize_depth, parse_analysts, parse_data_source
 from nano_tradingagents.data.ashare import AShareDataProvider, validate_ashare_symbol
 from nano_tradingagents.llm import create_llm
 from nano_tradingagents.models import AnalysisRequest
@@ -32,6 +32,7 @@ def analyze(
     symbol: str = typer.Argument(..., help="6 位 A 股代码，例如 000001、600519"),
     trade_date: Optional[str] = typer.Option(None, "--date", help="分析日期 YYYY-MM-DD，默认今天"),
     depth: str = typer.Option("standard", "--depth", help="分析深度: quick, standard, deep"),
+    data_source: str = typer.Option("tushare", "--data-source", help="数据源策略: tushare, akshare, auto"),
     analysts: str = typer.Option("market,fundamentals,news", "--analysts", help="分析师列表，逗号分隔"),
     report_dir: Path = typer.Option(Path("reports"), "--report-dir", help="报告输出目录"),
     mock_llm: bool = typer.Option(False, "--mock-llm", help="使用 mock LLM，不需要 API Key"),
@@ -40,19 +41,21 @@ def analyze(
     try:
         normalized_symbol = validate_ashare_symbol(symbol)
         normalized_depth = normalize_depth(depth)
+        normalized_data_source = parse_data_source(data_source)
         selected_analysts = parse_analysts(analysts)
         date_value = trade_date or date.today().strftime("%Y-%m-%d")
         request = AnalysisRequest(
             symbol=normalized_symbol,
             trade_date=date_value,
             depth=normalized_depth,
+            data_source=normalized_data_source,
             analysts=selected_analysts,
             report_dir=report_dir,
             mock_llm=mock_llm,
         )
         settings = load_settings()
         llm = create_llm(settings, mock=mock_llm)
-        data_provider = AShareDataProvider()
+        data_provider = AShareDataProvider(data_source=normalized_data_source)
 
         def progress(message: str) -> None:
             console.print(f"[cyan]→[/cyan] {message}")

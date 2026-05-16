@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from nano_tradingagents.models import AShareSnapshot
+from nano_tradingagents.data.tushare_provider import TushareDataProvider
 
 
 A_SHARE_RE = re.compile(r"^\d{6}$")
@@ -39,10 +40,19 @@ def _safe_float(value) -> Optional[float]:
 
 
 class AShareDataProvider:
-    """AKShare-first A-share data provider with explicit degraded results."""
+    """A-share data provider with configurable source priority."""
 
-    def __init__(self, ak_module=None):
+    def __init__(
+        self,
+        ak_module=None,
+        tushare_provider: Optional[TushareDataProvider] = None,
+        data_source: str = "tushare",
+    ):
         self._ak = ak_module
+        self._tushare = tushare_provider
+        self.data_source = (data_source or "tushare").strip().lower()
+        if self.data_source not in {"tushare", "akshare", "auto"}:
+            raise ValueError("不支持的数据源策略: {0}，支持: tushare, akshare, auto".format(data_source))
 
     @property
     def ak(self):
@@ -54,14 +64,20 @@ class AShareDataProvider:
             self._ak = ak
         return self._ak
 
+    @property
+    def tushare(self) -> TushareDataProvider:
+        if self._tushare is None:
+            self._tushare = TushareDataProvider()
+        return self._tushare
+
     def load_snapshot(self, symbol: str, trade_date: str, depth: str = "standard") -> AShareSnapshot:
         symbol = validate_ashare_symbol(symbol)
         warnings: List[str] = []
-        name = self._get_stock_name(symbol, warnings)
+        name = self._get_stock_name(symbol, trade_date, warnings)
         price_df = self._get_history(symbol, trade_date, depth, warnings)
         indicators = self._calculate_indicators(price_df, warnings)
         price_table = self._format_price_table(price_df)
-        fundamentals = self._get_fundamentals(symbol, warnings)
+        fundamentals = self._get_fundamentals(symbol, trade_date, warnings)
         news = self._get_news(symbol, warnings)
         return AShareSnapshot(
             symbol=symbol,
@@ -74,20 +90,72 @@ class AShareDataProvider:
             warnings=warnings,
         )
 
-    def _get_stock_name(self, symbol: str, warnings: List[str]) -> str:
-        try:
-            df = self.ak.stock_individual_info_em(symbol=symbol)
-            if isinstance(df, pd.DataFrame) and not df.empty:
-                key_col = "item" if "item" in df.columns else df.columns[0]
-                val_col = "value" if "value" in df.columns else df.columns[-1]
-                rows = df[df[key_col].astype(str).str.contains("股票简称|股票名称", na=False)]
-                if not rows.empty:
-                    return str(rows.iloc[0][val_col])
-        except Exception as exc:
-            warnings.append(f"股票名称获取失败: {exc}")
+    def _get_stock_name(self, symbol: str, trade_date: str, warnings: List[str]) -> str:
+        primary, fallback = self._source_order()
+        name = self._get_stock_name_by_source(primary, symbol, warnings, fallback=False)
+        if name:
+            return name
+        if fallback:
+            name = self._get_stock_name_by_source(fallback, symbol, warnings, fallback=True)
+            if name:
+                return name
         return f"股票{symbol}"
 
+    def _get_stock_name_by_source(
+        self, source: str, symbol: str, warnings: List[str], fallback: bool
+    ) -> Optional[str]:
+        if source == "akshare":
+            try:
+                df = self.ak.stock_individual_info_em(symbol=symbol)
+                if isinstance(df, pd.DataFrame) and not df.empty:
+                    key_col = "item" if "item" in df.columns else df.columns[0]
+                    val_col = "value" if "value" in df.columns else df.columns[-1]
+                    rows = df[df[key_col].astype(str).str.contains("股票简称|股票名称", na=False)]
+                    if not rows.empty:
+                        return str(rows.iloc[0][val_col])
+            except Exception as exc:
+                msg = "AKShare 股票名称获取失败" if not fallback else "AKShare 股票名称回退失败"
+                warnings.append(f"{msg}: {exc}")
+            return None
+        if source == "tushare":
+            if not self.tushare.enabled:
+                if not fallback:
+                    warnings.append("Tushare 未启用（缺少 TUSHARE_TOKEN）")
+                return None
+            try:
+                name = self.tushare.get_stock_name(symbol)
+                if name and fallback:
+                    warnings.append("股票名称已回退到 Tushare")
+                return name
+            except Exception as exc:
+                msg = "Tushare 股票名称获取失败" if not fallback else "Tushare 股票名称回退失败"
+                warnings.append(f"{msg}: {exc}")
+                return None
+        return None
+
     def _get_history(self, symbol: str, trade_date: str, depth: str, warnings: List[str]) -> pd.DataFrame:
+        primary, fallback = self._source_order()
+        data = self._get_history_by_source(primary, symbol, trade_date, depth, warnings, fallback=False)
+        if not data.empty:
+            return data
+        if fallback:
+            data = self._get_history_by_source(fallback, symbol, trade_date, depth, warnings, fallback=True)
+            if not data.empty:
+                return data
+        return pd.DataFrame()
+
+    def _get_history_by_source(
+        self, source: str, symbol: str, trade_date: str, depth: str, warnings: List[str], fallback: bool
+    ) -> pd.DataFrame:
+        if source == "akshare":
+            return self._get_history_from_akshare(symbol, trade_date, depth, warnings, fallback)
+        if source == "tushare":
+            return self._get_history_from_tushare(symbol, trade_date, depth, warnings, fallback)
+        return pd.DataFrame()
+
+    def _get_history_from_akshare(
+        self, symbol: str, trade_date: str, depth: str, warnings: List[str], fallback: bool
+    ) -> pd.DataFrame:
         days = {"quick": 90, "standard": 180, "deep": 365}.get(depth, 180)
         end = datetime.strptime(trade_date, "%Y-%m-%d")
         start = end - timedelta(days=days)
@@ -100,12 +168,35 @@ class AShareDataProvider:
                 adjust="qfq",
             )
             if not isinstance(df, pd.DataFrame) or df.empty:
-                warnings.append("行情数据为空")
+                if not fallback:
+                    warnings.append("AKShare 行情数据为空")
                 return pd.DataFrame()
             return df.tail(120).copy()
         except Exception as exc:
-            warnings.append(f"行情数据获取失败: {exc}")
+            msg = "AKShare 行情数据获取失败" if not fallback else "AKShare 行情回退失败"
+            warnings.append(f"{msg}: {exc}")
             return pd.DataFrame()
+
+    def _get_history_from_tushare(
+        self, symbol: str, trade_date: str, depth: str, warnings: List[str], fallback: bool
+    ) -> pd.DataFrame:
+        if not self.tushare.enabled:
+            if not fallback:
+                warnings.append("Tushare 未启用（缺少 TUSHARE_TOKEN）")
+            return pd.DataFrame()
+        try:
+            df = self.tushare.get_history(symbol, trade_date, depth)
+            if isinstance(df, pd.DataFrame) and not df.empty:
+                if fallback:
+                    warnings.append("行情数据已回退到 Tushare")
+                return df
+            if not fallback:
+                warnings.append("Tushare 行情数据为空")
+            return pd.DataFrame()
+        except Exception as exc:
+            msg = "Tushare 行情获取失败" if not fallback else "Tushare 行情回退失败"
+            warnings.append(f"{msg}: {exc}")
+        return pd.DataFrame()
 
     def _calculate_indicators(self, df: pd.DataFrame, warnings: List[str]) -> Dict[str, Optional[float]]:
         if df.empty:
@@ -154,7 +245,29 @@ class AShareDataProvider:
             return df.tail(10).to_markdown(index=False)
         return df[cols].tail(10).to_markdown(index=False)
 
-    def _get_fundamentals(self, symbol: str, warnings: List[str]) -> Dict[str, Optional[str]]:
+    def _get_fundamentals(self, symbol: str, trade_date: str, warnings: List[str]) -> Dict[str, Optional[str]]:
+        primary, fallback = self._source_order()
+        data = self._get_fundamentals_by_source(primary, symbol, trade_date, warnings, fallback=False)
+        if data:
+            return data
+        if fallback:
+            data = self._get_fundamentals_by_source(fallback, symbol, trade_date, warnings, fallback=True)
+            if data:
+                return data
+        return {}
+
+    def _get_fundamentals_by_source(
+        self, source: str, symbol: str, trade_date: str, warnings: List[str], fallback: bool
+    ) -> Dict[str, Optional[str]]:
+        if source == "akshare":
+            return self._get_fundamentals_from_akshare(symbol, warnings, fallback)
+        if source == "tushare":
+            return self._get_fundamentals_from_tushare(symbol, trade_date, warnings, fallback)
+        return {}
+
+    def _get_fundamentals_from_akshare(
+        self, symbol: str, warnings: List[str], fallback: bool
+    ) -> Dict[str, Optional[str]]:
         data: Dict[str, Optional[str]] = {}
         try:
             df = self.ak.stock_individual_info_em(symbol=symbol)
@@ -166,7 +279,8 @@ class AShareDataProvider:
                     if key in {"总市值", "流通市值", "行业", "上市时间", "股票简称"}:
                         data[key] = str(row[val_col])
         except Exception as exc:
-            warnings.append(f"基本信息获取失败: {exc}")
+            msg = "AKShare 基本信息获取失败" if not fallback else "AKShare 基本面回退失败"
+            warnings.append(f"{msg}: {exc}")
         try:
             indicator_df = self.ak.stock_financial_analysis_indicator(symbol=symbol)
             if isinstance(indicator_df, pd.DataFrame) and not indicator_df.empty:
@@ -175,8 +289,25 @@ class AShareDataProvider:
                     if key in indicator_df.columns:
                         data[key] = str(latest[key])
         except Exception as exc:
-            warnings.append(f"财务指标获取失败: {exc}")
+            msg = "AKShare 财务指标获取失败" if not fallback else "AKShare 财务指标回退失败"
+            warnings.append(f"{msg}: {exc}")
         return data
+
+    def _get_fundamentals_from_tushare(
+        self, symbol: str, trade_date: str, warnings: List[str], fallback: bool
+    ) -> Dict[str, Optional[str]]:
+        try:
+            if self.tushare.enabled:
+                data = self.tushare.get_fundamentals(symbol, trade_date)
+                if data and fallback:
+                    warnings.append("基本面数据已回退到 Tushare")
+                return data
+            if not fallback:
+                warnings.append("Tushare 未启用（缺少 TUSHARE_TOKEN）")
+        except Exception as exc:
+            msg = "Tushare 基本面获取失败" if not fallback else "Tushare 基本面回退失败"
+            warnings.append(f"{msg}: {exc}")
+        return {}
 
     def _get_news(self, symbol: str, warnings: List[str]) -> List[Dict[str, str]]:
         try:
@@ -200,6 +331,14 @@ class AShareDataProvider:
         except Exception as exc:
             warnings.append(f"新闻获取失败: {exc}")
             return []
+
+    def _source_order(self) -> tuple[str, Optional[str]]:
+        if self.data_source == "tushare":
+            return "tushare", "akshare"
+        if self.data_source == "akshare":
+            return "akshare", "tushare"
+        # auto: 默认与 tushare 一致，后续可扩展更复杂策略
+        return "tushare", "akshare"
 
     @staticmethod
     def _find_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:

@@ -10,16 +10,25 @@ class FakeProvider:
 
 
 def test_cli_analyze_mock(monkeypatch, tmp_path):
-    monkeypatch.setattr(cli, "AShareDataProvider", lambda: FakeProvider())
+    captured = {}
+
+    def _provider_factory(*args, **kwargs):
+        captured["data_source"] = kwargs.get("data_source")
+        return FakeProvider()
+
+    monkeypatch.setattr(cli, "AShareDataProvider", _provider_factory)
     runner = CliRunner()
     result = runner.invoke(cli.app, [
         "analyze",
         "000001",
         "--date",
         "2026-05-08",
+        "--data-source",
+        "akshare",
         "--mock-llm",
         "--report-dir",
         str(tmp_path),
     ])
     assert result.exit_code == 0, result.output
     assert (tmp_path / "000001_2026-05-08.md").exists()
+    assert captured["data_source"] == "akshare"
