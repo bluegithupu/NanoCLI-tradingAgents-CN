@@ -11,6 +11,7 @@ class AnalysisRequest:
     symbol: str
     trade_date: str
     depth: str = "standard"
+    data_source: str = "tushare"
     analysts: List[str] = field(default_factory=lambda: ["market", "fundamentals", "news"])
     report_dir: Path = Path("reports")
     mock_llm: bool = False

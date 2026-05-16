@@ -31,6 +31,22 @@
       "dependencies": [],
       "status": "已完成",
       "evidence": "2026-05-08 运行 ./init.sh 通过：8 个 pytest 测试通过。"
+    },
+    {
+      "id": "feat-005",
+      "name": "Tushare 数据源回退",
+      "description": "在 AKShare 关键接口失败时自动回退 Tushare（名称、行情、基本面），提升 A 股分析链路可用性。",
+      "dependencies": ["feat-002"],
+      "status": "已完成",
+      "evidence": "新增 nano_tradingagents/data/tushare_provider.py；更新 nano_tradingagents/data/ashare.py 回退逻辑；新增 tests/test_tushare_provider.py 与 tests/test_ashare.py 回退测试。"
+    },
+    {
+      "id": "feat-006",
+      "name": "数据源优先级与策略参数",
+      "description": "支持 tushare/akshare/auto 数据源策略，默认 tushare 第一优先，并提供 CLI 参数与环境变量配置。",
+      "dependencies": ["feat-005"],
+      "status": "已完成",
+      "evidence": "AnalysisRequest 新增 data_source；CLI 新增 --data-source；配置新增 NANO_DATA_SOURCE；AShareDataProvider 按策略选择主源/回退源；14 个测试通过。"
     }
   ]
 }

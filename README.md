@@ -62,6 +62,18 @@ nano-trading analyze 600519 --date 2026-05-08
 
 ```bash
 nano-trading analyze 000001 --depth quick
+
+指定数据源策略（默认 `tushare`）：
+
+```bash
+nano-trading analyze 000001 --data-source tushare
+```
+
+可选值：
+
+- `tushare`: Tushare 优先，失败后回退 AKShare
+- `akshare`: AKShare 优先，失败后回退 Tushare
+- `auto`: 当前等价于 `tushare`（预留后续智能策略）
 ```
 
 只运行技术面分析师，适合低成本 smoke test：
@@ -101,6 +113,7 @@ nano-trading analyze 000001 --date 2026-05-08 --depth quick --analysts market --
 | `symbol` | `000001` | 必填。仅支持 6 位 A 股代码，不支持美股/港股。 |
 | `--date` | `2026-05-08` | 分析日期，格式 `YYYY-MM-DD`。不传则使用当天日期。 |
 | `--depth` | `quick` | 分析深度：`quick`、`standard`、`deep`。默认 `standard`。 |
+| `--data-source` | `tushare` | 数据源策略：`tushare`、`akshare`、`auto`。默认 `tushare`。 |
 | `--analysts` | `market,fundamentals,news` | 分析师列表，逗号分隔。支持 `market`、`fundamentals`、`news`。 |
 | `--report-dir` | `./reports` | Markdown 报告输出目录。默认 `reports`。 |
 | `--mock-llm` | 无值开关 | 使用内置 mock LLM，不需要 API Key，适合测试流程。 |
@@ -220,6 +233,15 @@ AKShare 数据失败或新闻为空：
 - 检查网络连接。
 - 稍后重试，部分 AKShare 接口依赖第三方网页数据，可能临时不可用。
 - 报告中的“数据限制”会标出具体失败模块。
+
+AKShare 行情/个股信息接口不稳定（可选 Tushare 回退）：
+
+- 在 `.env` 配置 `TUSHARE_TOKEN=你的token`。
+- Tushare 初始化统一通过 `nano_tradingagents/data/tushare_client.py` 的 `create_tushare_pro_client()`。
+- 配置后，当 AKShare 的行情或个股信息接口失败时，Nano 会自动尝试回退到 Tushare 获取名称、行情和部分基本面。
+- 新闻仍优先使用 AKShare。
+- 如果显示 Token 不对，请先检查初始化是否包含：`pro._DataApi__http_url = "http://118.89.66.41:8010/"`（该逻辑已内置在统一初始化函数中）。
+- 可通过环境变量 `NANO_DATA_SOURCE` 设置默认数据源策略（`tushare`/`akshare`/`auto`）。
 
 模型响应慢：
 
