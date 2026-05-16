@@ -39,6 +39,16 @@ cp .env.example .env
 nano-trading analyze <6位A股代码> [选项]
 ```
 
+Web 页面（给 human 用）：
+
+```bash
+nano-trading web --host 127.0.0.1 --port 8000
+```
+
+默认访问地址：`http://127.0.0.1:8000`
+
+Web 表单中的“分析师列表”使用固定复选项（`market` / `fundamentals` / `news`），不再要求手工输入逗号分隔文本。
+
 查看帮助：
 
 ```bash
@@ -62,6 +72,7 @@ nano-trading analyze 600519 --date 2026-05-08
 
 ```bash
 nano-trading analyze 000001 --depth quick
+```
 
 指定数据源策略（默认 `tushare`）：
 
@@ -74,7 +85,6 @@ nano-trading analyze 000001 --data-source tushare
 - `tushare`: Tushare 优先，失败后回退 AKShare
 - `akshare`: AKShare 优先，失败后回退 Tushare
 - `auto`: 当前等价于 `tushare`（预留后续智能策略）
-```
 
 只运行技术面分析师，适合低成本 smoke test：
 
@@ -114,6 +124,7 @@ nano-trading analyze 000001 --date 2026-05-08 --depth quick --analysts market --
 | `--date` | `2026-05-08` | 分析日期，格式 `YYYY-MM-DD`。不传则使用当天日期。 |
 | `--depth` | `quick` | 分析深度：`quick`、`standard`、`deep`。默认 `standard`。 |
 | `--data-source` | `tushare` | 数据源策略：`tushare`、`akshare`、`auto`。默认 `tushare`。 |
+| `web` 子命令 | `nano-trading web --port 8000` | 启动 human Web 页面，默认监听 `127.0.0.1:8000`。 |
 | `--analysts` | `market,fundamentals,news` | 分析师列表，逗号分隔。支持 `market`、`fundamentals`、`news`。 |
 | `--report-dir` | `./reports` | Markdown 报告输出目录。默认 `reports`。 |
 | `--mock-llm` | 无值开关 | 使用内置 mock LLM，不需要 API Key，适合测试流程。 |
@@ -253,6 +264,20 @@ Python 版本不兼容：
 
 - 使用 Python 3.10-3.12。
 - 如果系统默认 Python 太新，使用 `uv venv --python 3.10 .venv`。
+
+## Web 页面（V1）
+
+- 首页：`GET /`，填写参数并触发分析
+- 分析提交：`POST /analyze`（同步执行）
+- 报告列表：`GET /reports`
+- 报告详情：`GET /reports/{name}`
+
+V1 说明：
+
+- 默认仅本机监听（`127.0.0.1`），不做登录鉴权
+- 报告详情先展示 Markdown 原文
+- 支持 `mock/真实 LLM` 切换
+
 
 ## 测试
 

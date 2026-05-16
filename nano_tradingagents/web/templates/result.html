@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>分析结果</title>
+  <style>
+    body{margin:0;font-family:"PingFang SC","Noto Sans SC",sans-serif;background:#f5f7ff;color:#1f2a44}
+    .wrap{max-width:920px;margin:24px auto;padding:0 16px}
+    .card{background:#fff;border:1px solid #d8e0f0;border-radius:14px;padding:18px;margin-bottom:14px}
+    h1{margin:0 0 10px;font-size:24px}
+    h2{margin:0 0 8px;font-size:18px}
+    .muted{color:#64748b}
+    ul{margin:0;padding-left:18px}
+    pre{background:#f8fafc;border:1px solid #d8e0f0;border-radius:10px;padding:12px;white-space:pre-wrap}
+    a{color:#0f4aa1;text-decoration:none} a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>分析已完成</h1>
+      <p>股票：{{ state.final_decision.symbol }} ｜ 日期：{{ state.final_decision.date }} ｜ 动作：<strong>{{ state.final_decision.action }}</strong></p>
+      <p class="muted">报告路径：{{ report_relpath }}</p>
+      <p><a href="/reports/{{ report_name }}">查看本次报告</a> ｜ <a href="/reports">报告列表</a> ｜ <a href="/">返回首页</a></p>
+    </div>
+
+    <div class="card">
+      <h2>执行阶段</h2>
+      <ul>
+        {% for item in progress_logs %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>风险经理摘要</h2>
+      <pre>{{ state.reports.get('risk', '') }}</pre>
+    </div>
+  </div>
+</body>
+</html>
